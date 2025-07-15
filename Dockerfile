@@ -39,7 +39,8 @@ RUN git clone --depth 1 -b ${SEAMLESS_BRANCH} \
        https://github.com/facebookresearch/seamless_communication.git seamless_comm
 WORKDIR /tmp/seamless_comm
 RUN python3 -m pip wheel .[gpu] --no-deps -w /tmp/wheels \
-      --retries 5
+      --retries 5 && \
+    ls -la /tmp/wheels/
 
 ##############################
 # 2) RUNTIME STAGE
@@ -66,19 +67,26 @@ RUN ln -sf /usr/lib/x86_64-linux-gnu/libtbbmalloc.so.2 \
 
 # 2.3) Install torch, fairseq2 (0.2.*), then seamless_communication wheel
 COPY --from=build /tmp/wheels /tmp/wheels
-RUN python3 -m pip install --upgrade pip setuptools wheel \
-      --retries 5 && \
-    python3 -m pip install \
+
+# 2.3.1) Upgrade pip
+RUN python3 -m pip install --upgrade pip setuptools wheel --retries 5
+
+# 2.3.2) Install PyTorch
+RUN python3 -m pip install \
       --extra-index-url https://download.pytorch.org/whl/cu124 \
       torch==${TORCH_VERSION} \
-      --retries 5 && \
-    python3 -m pip install \
+      --retries 5
+
+# 2.3.3) Install fairseq2
+RUN python3 -m pip install \
       --index-url https://fair.pkg.atmeta.com/fairseq2/whl/pt${FAIRSEQ2_PYTORCH_VERSION}/cu124 \
       --extra-index-url https://pypi.org/simple \
       'fairseq2==0.2.*' \
-      --retries 5 && \
-    python3 -m pip install /tmp/wheels/*.whl \
       --retries 5
+
+# 2.3.4) Install seamless_communication wheel
+RUN ls -la /tmp/wheels/ && \
+    python3 -m pip install /tmp/wheels/*.whl --retries 5
 
 # Stop here for base image - the main Dockerfile will handle the rest
 WORKDIR /app
